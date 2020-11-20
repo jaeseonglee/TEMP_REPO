@@ -6,7 +6,7 @@
 
 #define DECK 52
 
-#define MAX_CARDS_PER_PLAYER 5
+#define MAX_CARDS_PER_PLAYER 9
 
 #define BEGIN_MONEY 100.0
 
@@ -182,15 +182,16 @@ void card_betting(int num) {
 }
 
 void add_card(int num) {
-	int i, j, r, sum = 0;
+	int i, j, r;
 
 	for (i = 0; i <= num; i++) {
+		int sum = 0;
 		if (PLAYERS[i].status == low) {
-			if (i == 0) {
-				for (j = 0; j < PLAYERS[i].card_num; j++) {
-					sum += PLAYERS[i].cards[j].number;
-				}
+			for (j = 0; j < PLAYERS[i].card_num; j++) {
+				sum += PLAYERS[i].cards[j].number;
+			}
 
+			if (i == 0) {
 				if (sum < DEALER_MINIMUM) {
 					while (1) {
 						r = rand() % DECK;
@@ -213,13 +214,12 @@ void add_card(int num) {
 				}
 			}
 			else {
-				char c;
+				
 				while (1) {
 					printf("PLAYER %d, add card?(y or n) : ", i);
-					
+					char c;
 					scanf("%c", &c);
-					
-					fflush(stdin);
+					getchar();
 
 					if (c == 'y') {
 						j = PLAYERS[i].card_num;

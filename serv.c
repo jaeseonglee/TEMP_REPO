@@ -16,7 +16,6 @@
 #define PORTNUM 9003
 #define MAXLINE 256
 #define PLAYER_MAX 5
-#define DECK 52
 
 enum suits { club = 0, diamond, heart, spade };
 enum status { low = 0, blackjack, bust };
@@ -43,22 +42,22 @@ int main(int argc, char *argv[]) {
 	int pid[5], pid_num = 0;
       	char buf[MAXLINE+1];
       	int nbytes;
-      	PLAYER *player_ptr;
   
 	// 랜덤인수 지정
 	srand(time(NULL));
 
 	/*================게임 데이터 ======================*/
-	PLAYER *players[PLAYER_MAX];
-	CARD *deck[DECK];
+	PLAYER players[PLAYER_MAX];
 
-	int shmid[PLAYER_MAX],shmid_deck[DECK];
+	CARD *deck[DECK]; 
+
+	int shmid[PLAYER_MAX], shmid_deck[DECK];
 
 	//플레이어 공유 메모리 생성
-	player_memory(shmid, players,PLAYER_MAX);
-
+	player_memory(shmid, players, PLAYER_MAX);
+	
 	//덱 공유 메모리 생성
-	deck_memory( deck_shmid, deck, DECK);
+	deck_memory( deck_shmid, deck);
   
 	//게임시작 공유 메모리 생성
 	int shgame;
@@ -69,7 +68,7 @@ int main(int argc, char *argv[]) {
       		exit(1);
 	}	
 
-	pid_num = (int *)shmat(shgame, (int *)NULL, 0); //공유메모리 연결
+	pid_num = (int)shmat(shgame, NULL, 0); //공유메모리 연결
 	        
 	int state;
 	state = shmget(IPC_PRIVATE, 20, IPC_CREAT|0644);     //공유메모리 생성
@@ -79,7 +78,7 @@ int main(int argc, char *argv[]) {
 	        exit(1);
 	}
 
-	int ready = (int *)shmat(state, (int *)NULL, 0); //공유메모리 연결
+	int ready = (int)shmat(state, NULL, 0); //공유메모리 연결
 	ready = 0;		// 초기값 0
 
 	// 게임 진행중 확인 공유 메모리
@@ -91,7 +90,7 @@ int main(int argc, char *argv[]) {
 	        exit(1);
 	}
 	
-	int game_state  = (int *)shmat(ingame, (int *)NULL, 0); //공유메모리 연결
+	int game_state  = (int )shmat(ingame, NULL, 0); //공유메모리 연결
 	game_state = 0;
 	
       	//==============서버==================
@@ -138,7 +137,7 @@ int main(int argc, char *argv[]) {
 		//자식 프로세스
         	else if(pid[pid_num  - 1] == 0) {   // check
 			int id = pid_num;
-			PLAYER player = players[id];
+			PLAYER *player = players[id];
 			player = player_set();			//초기화		
 			
 			while(1) {				// 게임 반복문
@@ -156,7 +155,7 @@ int main(int argc, char *argv[]) {
 				//카드 나눠주기-서버가 할 일
 			
 				while(1) {				// 카드뽑기 반복문
-					if(player.status == blackjack) {
+					if(player->status == blackjack) {
 						 send_msg(player, "BJ", ns);
 						 // 사용자에게 메세지 보내기
 						 break;
@@ -168,7 +167,7 @@ int main(int argc, char *argv[]) {
 					else
 						break;
 					
-					if(player.status == bust) {
+					if(player->status == bust) {
 		                                send_msg(player, "BUST", ns);
 					       	// 사용자에게 메세지 보내기
 						break;
@@ -199,7 +198,7 @@ int main(int argc, char *argv[]) {
 				draw_card(PLAYERS, deck, pid_num);
 				// 카드 나누기, 전부 2장 뽑음
 			
-				dealer_draw(PLAYERS[0], deck);	//딜러 드로우	
+				dealer_draw(players[0], deck);	//딜러 드로우	
 				while(ready != 0) 
 					sleep(1);
 				

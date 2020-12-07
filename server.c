@@ -25,7 +25,7 @@ void player_memory(int *shmid, PLAYER *players, int PLAYER_MAX){
 }
 
 //덱 공유메모리 만들기
-void deck_memory(int *deck_shmid, CARD* deck[]) {
+void deck_memory(int *deck_shmid, CARD* deck) {
         int i = 0;
         for(; i < DECK; i++) {
                 *deck_shmid = (int)shmget(IPC_PRIVATE, 20, IPC_CREAT|0644);     //공유메모리 생성
@@ -34,8 +34,8 @@ void deck_memory(int *deck_shmid, CARD* deck[]) {
 		       	exit(1);
 		}
 
-                deck[i] = (CARD *)shmat(*deck_shmid, (CARD *)NULL, 0); //공유메모리 연결
-		//deck_shmid++;
+                deck = (CARD *)shmat(*deck_shmid, (CARD *)NULL, 0); //공유메모리 연결
+		deck_shmid++;
 		deck++;
         }
 }

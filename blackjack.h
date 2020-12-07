@@ -32,11 +32,11 @@ typedef struct player {
 
 
 //플레이어 세팅
-PLAYER* player_set(PLAYER *player)
+void player_set(PLAYER *player)
 {
 	player->money = 10000;
 	player->status = 0;
-	return player;
+	player->card_num = 0;
 }
 
 
@@ -89,41 +89,41 @@ void deckMaker(CARD* deck) {
 }
 
 //카드 나눠주기
-void draw_card(PLAYER *PLAYERS[] ,CARD *deck, int num) {
+void draw_card(PLAYER *PLAYERS ,CARD *deck, int num) {
         int i, j = 0;
 	for(i = 0; i < num; i++) {
 		j = 0;
-	        while (PLAYERS[i]->card_num < 2) {
+	        while (PLAYERS[i].card_num < 2) {
                         int r = rand() % DECK;
 		 	if (deck[r].flag == 0) { // flag : 카드 사용중
 		 		if (deck[r].number > 10) deck[r].number = 10;
                                	       deck[r].flag = 1;
-			     	       PLAYERS[i]->cards[j] = deck[r];
+			     	       PLAYERS[i].cards[j] = deck[r];
 			    	       j++;
-                                       PLAYERS[i]->card_num++;
+                                       PLAYERS[i].card_num++;
 			}
 		}
 
 		// bj check
-		if (PLAYERS[i]->cards[0].number == 1) {
-                        if (11 + PLAYERS[i]->cards[1].number <= BLACKJACK) {
-                                PLAYERS[i]->cards[0].number = 11;
+		if (PLAYERS[i].cards[0].number == 1) {
+                        if (11 + PLAYERS[i].cards[1].number <= BLACKJACK) {
+                                PLAYERS[i].cards[0].number = 11;
                         }
                 }
 
-                if (PLAYERS[i]->cards[1].number == 1) {
-                        if (11 + PLAYERS[i]->cards[0].number <= BLACKJACK) {
-                                PLAYERS[i]->cards[1].number = 11;
+                if (PLAYERS[i].cards[1].number == 1) {
+                        if (11 + PLAYERS[i].cards[0].number <= BLACKJACK) {
+                                PLAYERS[i].cards[1].number = 11;
                         }
                 }
 
-                if (PLAYERS[i]->cards[0].number + PLAYERS[i]->cards[1].number < BLACKJACK) 
-                        PLAYERS[i]->status = low;
+                if (PLAYERS[i].cards[0].number + PLAYERS[i].cards[1].number < BLACKJACK) 
+                        PLAYERS[i].status = low;
                 
-                else if (PLAYERS[i]->cards[0].number + PLAYERS[i]->cards[1].number == BLACKJACK) 
-                        PLAYERS[i]->status = blackjack;
+                else if (PLAYERS[i].cards[0].number + PLAYERS[i].cards[1].number == BLACKJACK) 
+                        PLAYERS[i].status = blackjack;
                 else 
-                	PLAYERS[i]->status = bust;
+                	PLAYERS[i].status = bust;
 	}
 }
 
@@ -208,7 +208,7 @@ int addQuestion(PLAYER * player, int ns) {
 }
 	
 
-void game_result(PLAYER *dealer, PLAYER *player, int ns) {
+void game_result(PLAYER dealer, PLAYER *player, int ns) {
         int i;
 	char str[256];
         char temp[256];
@@ -216,22 +216,22 @@ void game_result(PLAYER *dealer, PLAYER *player, int ns) {
 	send(ns, "result", 6, 0);
 
 	// 딜러
-	for( i = 0 ; i < dealer->card_num; i++) {
-		if(dealer->cards[i].suit == club)
+	for( i = 0 ; i < dealer.card_num; i++) {
+		if(dealer.cards[i].suit == club)
                         strcat(str, "club" );
-                else if(dealer->cards[i].suit == diamond)
+                else if(dealer.cards[i].suit == diamond)
                         strcat(str, "diamond" );
-                else if(dealer->cards[i].suit == heart)
+                else if(dealer.cards[i].suit == heart)
                         strcat(str, "heart" );
-                else if(dealer->cards[i].suit == spade)
+                else if(dealer.cards[i].suit == spade)
                         strcat(str, "spade" );
                 strcat(str, " ");
 
                 // 11일 경우
-                if(dealer->cards[i].number == 1 || dealer->cards[i].number == 11)
+                if(dealer.cards[i].number == 1 || dealer.cards[i].number == 11)
                         strcat(str, "Ace");
                 else
-                       	sprintf(temp, "%d", player->cards[i].number);
+                       	sprintf(temp, "%d", dealer.cards[i].number);
                 strcat(str, temp );
                 send(ns, str, strlen(str), 0);
         }
@@ -289,9 +289,10 @@ void add_card(PLAYER *player, CARD *deck) {
 	
 	if (sum >= BLACKJACK) {     
 		for(j = 0; j < player->card_num; j++) {
-			if(player->cards[j].number == 11){
+			if(player->cards[j].number == 11) {
 				player->cards[j].number = 1;
 				sum -= 10;
+			}
 			break;
 		}                             
  	}       
@@ -307,31 +308,38 @@ void ben(PLAYER *player, int ns , int pid_num) {
 }
 
 
-void dealer_draw(PLAYER *dealer, CARD *deck) {
+void dealer_draw(PLAYER dealer, CARD *deck) {
 	int i, j, r;
         int sum = 0;
-	if (dealer->status == low) {  
-		for (i = 0; i < dealer->card_num; i++) 
-			sum += dealer->cards[i].number;
-	}
 
+	if (dealer.status == low) {  
+		for (i = 0; i < dealer.card_num; i++) 
+			sum += dealer.cards[i].number;
+	}
 	if (sum < DEALER_MINIMUM) {
 		while (1) {                
 			r = rand() % DECK;
 			if (deck[r].flag == 0) {
 				if (deck[r].number > 10)
 					deck[r].number = 10;
+
 				deck[r].flag = 1;
-        
-				dealer->cards[i] = deck[r];
-				dealer->card_num++;
-				sum += dealer->cards[j].number;
+				
+				//dealer.cards[i].number = deck[r].number;	// 이거
+				//dealer.cards[i].suit = deck[r].suit;
+				//dealer.cards[i].color = deck[r].color;
+				//dealer.cards[i].flag = deck[r].flag;
+
+				dealer.card_num++;
+
+				sum += dealer.cards[j].number;
+
 				if (sum < DEALER_MINIMUM)
 					continue;
 				else if(sum >= DEALER_MINIMUM) {
-					for(j = 0; j < dealer->card_num; j++) {
-						if(dealer->cards[j].number == 11){
-			                                dealer->cards[j].number = 1;
+					for(j = 0; j < dealer.card_num; j++) {
+						if(dealer.cards[j].number == 11){
+			                                dealer.cards[j].number = 1;
                         			        sum -= 10;
                         				break;
 						}
@@ -346,10 +354,10 @@ void dealer_draw(PLAYER *dealer, CARD *deck) {
 	}
 
 	if(sum > BLACKJACK)
-		dealer->status = bust;
+		dealer.status = bust;
 	else if( sum == BLACKJACK)
-		dealer->status = blackjack;
+		dealer.status = blackjack;
 	else
-		dealer->status = low;
+		dealer.status = low;
 }
 

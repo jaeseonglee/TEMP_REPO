@@ -17,6 +17,7 @@
 #define MAXLINE 256
 #define PLAYER_MAX 5
 
+/*
 enum suits { club = 0, diamond, heart, spade };
 enum status { low = 0, blackjack, bust };
 
@@ -34,22 +35,23 @@ typedef struct player {
         int card_num;
         enum status status;
 }PLAYER;
+*/
 
 int main(int argc, char *argv[]) {
 	//변수
 	struct sockaddr_in sin, cli;
 	int sd, ns, clientlen = sizeof(cli);
-	int pid[5], pid_num = 0;
+	int pid[5], *pid_num; //= 0;
       	char buf[MAXLINE+1];
       	int nbytes;
   
 	// 랜덤인수 지정
 	srand(time(NULL));
 
-	/*================게임 데이터 ======================*/
+	//================게임 데이터 ======================//
 	PLAYER players[PLAYER_MAX];
-
-	CARD *deck[DECK]; 
+	
+	CARD deck[DECK]; 
 
 	int shmid[PLAYER_MAX], shmid_deck[DECK];
 
@@ -57,7 +59,7 @@ int main(int argc, char *argv[]) {
 	player_memory(shmid, players, PLAYER_MAX);
 	
 	//덱 공유 메모리 생성
-	deck_memory( deck_shmid, deck);
+	deck_memory( shmid_deck, deck);
   
 	//게임시작 공유 메모리 생성
 	int shgame;
@@ -67,9 +69,10 @@ int main(int argc, char *argv[]) {
 	      	perror("shmget");
       		exit(1);
 	}	
+	
+	pid_num = (int *)shmat(shgame, NULL, 0); //공유메모리 연결
+	*pid_num = 0;        
 
-	pid_num = (int)shmat(shgame, NULL, 0); //공유메모리 연결
-	        
 	int state;
 	state = shmget(IPC_PRIVATE, 20, IPC_CREAT|0644);     //공유메모리 생성
 
@@ -77,9 +80,9 @@ int main(int argc, char *argv[]) {
         	perror("shmget");
 	        exit(1);
 	}
-
-	int ready = (int)shmat(state, NULL, 0); //공유메모리 연결
-	ready = 0;		// 초기값 0
+	
+	int *ready = (int *)shmat(state, NULL, 0); //공유메모리 연결
+	*ready = 0;		// 초기값 0
 
 	// 게임 진행중 확인 공유 메모리
 	int ingame;
@@ -90,22 +93,27 @@ int main(int argc, char *argv[]) {
 	        exit(1);
 	}
 	
-	int game_state  = (int )shmat(ingame, NULL, 0); //공유메모리 연결
-	game_state = 0;
+	int *game_state  = (int *)shmat(ingame, NULL, 0); //공유메모리 연결
+	*game_state = 0;
 	
       	//==============서버==================
 	//명령인자 - 도움말, 소켓연결
-	if(strcmp(argv[1],"-h") == 0) {
-		printf("[--help--]\n");
-		printf("number (1) : Da Vinci code \n" );
-		printf("other game");
-	}
-	else {
+	
+	
+	//if(strcmp(argv[1], "-h") == 0) {
+	//	printf("[--help--]\n");
+	//	printf("number (1) : Da Vinci code \n" );
+	//	printf("other game");
+	//}
+
+	//else {
+		
+		/*	
 		if((sd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
 			perror("socket");
 		        exit(0);
 	        }
-
+		
 	        memset((char *)&sin, '\0',sizeof(sin));
 	        sin.sin_family = AF_INET;
 	        sin.sin_port = htons(PORTNUM);
@@ -126,22 +134,27 @@ int main(int argc, char *argv[]) {
 	        	perror("accept");
         	        exit(1);
 		}
+		*/		
+
 
 		//===================================================
 		//자식 프로세스 생성
-		if((pid[pid_num++] = fork()) == -1) {
+		if((pid[(*pid_num)] = fork()) == -1) {
 		      	close(ns);
 	      		perror("fork()");
 	      		exit(0);
 	        }	
+		*pid_num += 1; 
+
+		/*
 		//자식 프로세스
-        	else if(pid[pid_num  - 1] == 0) {   // check
-			int id = pid_num;
-			PLAYER *player = players[id];
-			player = player_set();			//초기화		
+        	else if(pid[*pid_num  - 1] == 0) {   // check
+			int id = *pid_num;
+			PLAYER *player = &players[id];
+			player_set(player);			//초기화		
 			
 			while(1) {				// 게임 반복문
-				if(game_state == 1) { 		// 게임중 
+				if(*game_state == 1) { 		// 게임중 
 					sleep(1);
 					continue;
 				}
@@ -163,7 +176,7 @@ int main(int argc, char *argv[]) {
 	
 					// 더뽑을 것인지 아닌지 받아야함	
 					if(addQuestion(player, ns) == 0)
-						add_card();
+						add_card(player, deck);
 					else
 						break;
 					
@@ -175,41 +188,58 @@ int main(int argc, char *argv[]) {
 				}// 안쪽의 while
 			
 				// 결과 전달
-				game_result(PLAYERS[0], player,ns);	 
+				game_result(players[0], player,ns);	 
 			 
 				// ben
-				ben(player , ns, pid_num);
+				ben(player, ns, *pid_num);
 						
 				ready -= 1;	
     			}// 바깥쪽의 while
 		} //자식 프로세스 영역
+		
+*/
 
 		// 부모프로세스
-	        else if (pid > 0) {
+		//else
+	        if (*pid > 0) {
 	        	while(1) {	
-				while(ready != pid_num) {
-					sleep(5);
-				}	
+				printf("1234\n");
+				sleep(1);
+			 	
+				//while(*ready != *pid_num) {
+			//		sleep(5);
+			//	}	
 			
-				game_state = 1;
+		//		*game_state = 1;
 				
 				deckMaker(deck); 		// 덱 초기화
+				
+				PLAYER *player = &players[0];
+                                player_set(player);
+
 			
-				draw_card(PLAYERS, deck, pid_num);
+				draw_card(players, deck, *pid_num);
 				// 카드 나누기, 전부 2장 뽑음
-			
+				
+
+
+				
 				dealer_draw(players[0], deck);	//딜러 드로우	
-				while(ready != 0) 
+				while(*ready != 0) 
 					sleep(1);
 				
 			}// while
 		} // 부모 프로세스 영역 끝
-
+		
+		
+		
 		//공유 메모리 연결해제
-		for(i = 0; i < PLAYER_MAX; i++) {
-			shmdt(shmaddr[i]);
-			shmctl(shmid[i], IPC_RMID, NULL);
-		}
-	}
-	return 0;	
+		//for(i = 0; i < PLAYER_MAX; i++) {
+		//	shmdt(shmaddr[i]);
+		//	shmctl(shmid[i], IPC_RMID, NULL);
+		//}
+	//}	
+		
+	return 0;		
 }
+

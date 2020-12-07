@@ -41,17 +41,24 @@ void player_set(PLAYER *player)
 
 
 //베팅 - 인원 수
-void money_betting(PLAYER *player,int ns)
-{
+void money_betting(PLAYER *player,int ns) {
 	double num =0;
 	char buf[BUFSIZ];
+	
+	send(ns, "money", 5, 0 );
+
+	sprintf(buf, "%.1lf", player->money);
+
+	send(ns, buf, strlen(buf), 0);
+	
+	strcpy(buf, "");
 
 	while(1)
 	{
 		send(ns, "bet", 3, 0);
 		recv(ns, buf, sizeof(buf), 0);
 
-		num = atoi(buf);
+		num = (double)atoi(buf);
 		if(num > player->money)
 			continue;
 		else if(num < 0)
@@ -126,19 +133,6 @@ void draw_card(PLAYER *PLAYERS ,CARD *deck, int num) {
                 	PLAYERS[i].status = bust;
 	}
 }
-
-/*
-// 클라이언트 블랙잭 체크
-int checkBJ_C(PLAYER *PLAYERS, int ns) {
-        if (PLAYERS[i].status == blackjack) {
-                 // 소켓에 전달함 블랙잭이 나왔다         
-                send(ns,"bj",sizeof(buf),0);
-                return 0;
-        }
-	return 1;
-}
-*/
-
 
 void send_msg(PLAYER *player, char *buf, int ns) {
 	send(ns,buf, strlen(buf), 0);
@@ -265,6 +259,33 @@ void game_result(PLAYER dealer, PLAYER *player, int ns) {
                 send(ns, str, strlen(str), 0);
 	}
         send(ns, "done", 4, 0);// 일단 에러 나는지 나중에 확인
+	
+	if(dealer.status == blackjack) {
+		if(player->status == blackjack)
+			player->bet = 0;
+		else if(player->status == low || player->status == bust)
+			player->money -= player->bet;
+	}	
+	else if(dealer.status == low) {
+		if(player->status == blackjack) 
+			player->money += player->bet;
+                else if(player->status ==  bust)
+                        player->money -= player->bet;
+		else {
+			int i, dealerSum = 0, sum = 0;
+                	for (i = 0; i < dealer.card_num; i++)  
+				dealerSum += dealer.cards[i].number;
+			for (i = 0; i < player->card_num; i++)
+                                sum += player->cards[i].number;
+ 	      		
+			if(sum < dealerSum) 
+				player->money -= player->bet;
+			else if(sum > dealerSum)
+				player->money += player->bet;
+		}
+	}
+	else
+		player->money += player->bet;
 }
 
 
@@ -308,56 +329,59 @@ void ben(PLAYER *player, int ns , int pid_num) {
 }
 
 
-void dealer_draw(PLAYER dealer, CARD *deck) {
+void dealer_draw(PLAYER* dealer, CARD *deck) {
 	int i, j, r;
-        int sum = 0;
+        int sum = 0; 
 
-	if (dealer.status == low) {  
-		for (i = 0; i < dealer.card_num; i++) 
-			sum += dealer.cards[i].number;
+	if (dealer->status == low) {  
+		for (i = 0; i < dealer->card_num; i++)  
+			sum += dealer->cards[i].number;		
 	}
+	else if(dealer->status == blackjack) 
+		sum = BLACKJACK;
+	
+	
+
 	if (sum < DEALER_MINIMUM) {
 		while (1) {                
 			r = rand() % DECK;
+
 			if (deck[r].flag == 0) {
 				if (deck[r].number > 10)
 					deck[r].number = 10;
 
-				deck[r].flag = 1;
-				
-				//dealer.cards[i].number = deck[r].number;	// 이거
-				//dealer.cards[i].suit = deck[r].suit;
-				//dealer.cards[i].color = deck[r].color;
-				//dealer.cards[i].flag = deck[r].flag;
+				dealer->cards[i] = deck[r];		
 
-				dealer.card_num++;
+				dealer->card_num += 1;
 
-				sum += dealer.cards[j].number;
+				sum += dealer->cards[i].number;
+
+				i++;
 
 				if (sum < DEALER_MINIMUM)
 					continue;
 				else if(sum >= DEALER_MINIMUM) {
-					for(j = 0; j < dealer.card_num; j++) {
-						if(dealer.cards[j].number == 11){
-			                                dealer.cards[j].number = 1;
+					for(j = 0; j < dealer->card_num; j++) {
+						if(dealer->cards[j].number == 11){
+			                                dealer->cards[j].number = 1;
                         			        sum -= 10;
                         				break;
 						}
-					}
+					}// for
 					if(sum >= DEALER_MINIMUM)
 						break;
 					else
 						continue;
-                		}
-			}		
-		}	
-	}
+                		}// else if
+			}// if
+		}// while	
+	}//if
 
 	if(sum > BLACKJACK)
-		dealer.status = bust;
+		dealer->status = bust;
 	else if( sum == BLACKJACK)
-		dealer.status = blackjack;
+		dealer->status = blackjack;
 	else
-		dealer.status = low;
+		dealer->status = low;
 }
 

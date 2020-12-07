@@ -40,7 +40,7 @@ void deck_memory(int *deck_shmid, CARD* deck) {
         }
 }
 
-// 서버 첫번째 체크
+/*
 void checkBJ_P(PLAYER *PLAYERS[], int pid_num) {
         int i;
         for (i = 0; i <= pid_num; i++) {
@@ -49,7 +49,4 @@ void checkBJ_P(PLAYER *PLAYERS[], int pid_num) {
                 }
         }
 }
-
-
-
-
+*/
